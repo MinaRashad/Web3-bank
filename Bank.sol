@@ -1,9 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+contract Bank{
+    uint256 public total_balance;
+    BankAccount[] public Accounts;
+    uint256 public num_of_accounts;
+
+    constructor() {
+        total_balance = 0;
+        num_of_accounts = 0;
+    }
+
+    function Create_Account(BankAccount account) public {
+        Accounts.push(account);
+        num_of_accounts++;
+    }
+
+
+
+    
+}
+
 contract BankAccount{
-    constructor(){
-        owner = payable(msg.sender);
+    constructor(Bank _bank) {
+        owner = payable(tx.origin);
+        bank = _bank;
+
+        bank.Create_Account(this);
     }
 
 
@@ -11,9 +34,10 @@ contract BankAccount{
     State state = State.Active;
 
     address payable public owner;
+    Bank bank;
 
     modifier isOwner() {
-        require(msg.sender == owner);
+        require(tx.origin == owner);
         _;
     }
 
@@ -22,20 +46,28 @@ contract BankAccount{
         require(state == State.Active);
         _;
     }
+    modifier EnoughBalance(uint256 amount)
+    {
+        require(amount <= address(this).balance);
+        _;
+    }
+    
 
-    // control balance
-    uint256 balance;
 
     function Deposit()
-    public payable isActive isOwner{
-        balance += msg.value;
-    }
+    public payable isActive isOwner{}
 
     function Withdraw(uint256 amount)
-    public payable isActive isOwner{
-        require(balance >= amount);
-        balance -= amount;
+    public isActive isOwner EnoughBalance(amount) {
+        require(address(this).balance >= amount);
         owner.transfer(amount);
+    }
+
+    function Transfer(address payable to, uint256 amount)
+    public isActive isOwner{
+        require(address(this).balance >= amount);
+        bool success = to.send(amount);
+        require(success);
     }
 
     // control account status
@@ -59,6 +91,8 @@ contract BankAccount{
     }
 
     function get_balance() public view returns(uint256){
-        return balance;
+        return address(this).balance;
     }
+
 }
+
